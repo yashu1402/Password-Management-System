@@ -162,6 +162,7 @@ class Window():
         self.root = root
         self.user_id=user_id
         self.criteria_window=None
+        self.root.bind("<Button-1>", self.check_focus)  
         self.criteria_labels=[]
         self.criteria_var=[]
         self.check_var=[]
@@ -230,58 +231,68 @@ class Window():
                 operation.bind("<FocusOut>",self.hide_criteria_popup)
             self.operations.append(operation)
             self.col_no += 1
-            
+           
     def check_criteria(self, event):
+        if self.criteria_window:
+            self.criteria_window.destroy()
+        
         criteria = ["At least 8 characters", "At least 1 digit", "At least 1 uppercase letter", "At least 1 lowercase letter", "At least 1 symbol"]
         entry = event.widget
-        criteria_popup = Toplevel(self.root)
-        criteria_popup.title("Password Criteria")
-        criteria_popup.geometry("400x180")
-        criteria_popup.attributes("-topmost", True)
-        criteria_popup.protocol("WM_DELETE_WINDOW", lambda: self.hide_criteria_popup(criteria_popup))
+        self.criteria_window = Toplevel(self.root)
+        self.criteria_window.title("Password Criteria")
+        self.criteria_window.geometry("400x180")
+        self.criteria_window.attributes("-topmost", True)
+        #self.criteria_window.protocol("WM_DELETE_WINDOW", self.hide_criteria_popup)
         
-        criteria_var = []
-        check_var = []
+        self.criteria_var = []
+        self.check_var = []
         for i in range(len(criteria)):
-            var = StringVar()
-            var.set(criteria[i])
-            criteria_var.append(var)
-            check_var.append(StringVar())
-            Checkbutton(criteria_popup, textvariable=var, variable=check_var[i], onvalue="Checked", offvalue="").grid(row=i, column=0, sticky="w")
+            var = StringVar(value=criteria[i])
+            self.criteria_var.append(var)
+            check_var = StringVar()
+            self.check_var.append(check_var)
+            Checkbutton(self.criteria_window, textvariable=var, variable=check_var, onvalue="Checked", offvalue="").grid(row=i, column=0, sticky="w")
         
-        entry.bind("<KeyRelease>", lambda event, criteria_var=criteria_var, check_var=check_var, popup=criteria_popup: self.update_criteria(event, criteria_var, check_var, popup))
-    
-    def update_criteria(self, event, criteria_var, check_var, popup):
+        entry.bind("<KeyRelease>", self.update_criteria)
+
+    def update_criteria(self, event):
         entry = event.widget
         password = entry.get()
-        all_checked=all(check_var[i].get()=="Checked" for i in range(len(check_var)))
+        criteria = ["At least 8 characters", "At least 1 digit", "At least 1 uppercase letter", "At least 1 lowercase letter", "At least 1 symbol"]
+
+        all_checked = all(self.check_var[i].get() == "Checked" for i in range(len(self.check_var)))
         if all_checked:
-            popup.withdraw()
+            self.hide_criteria_popup()
             return
-        
-        for i in range(len(criteria_var)):
-            if check_var[i].get() == "":
-                if i == 0 and len(password) >=8 :
-                    criteria_var[i].set("✓ At least 8 characters")
-                    check_var[i].set("Checked")
+
+        for i in range(len(criteria)):
+            if self.check_var[i].get() == "":
+                if i == 0 and len(password) >= 8:
+                    self.criteria_var[i].set("✓ At least 8 characters")
+                    self.check_var[i].set("Checked")
                 elif i == 1 and any(char.isdigit() for char in password):
-                    criteria_var[i].set("✓ At least 1 digit")
-                    check_var[i].set("Checked")
+                    self.criteria_var[i].set("✓ At least 1 digit")
+                    self.check_var[i].set("Checked")
                 elif i == 2 and any(char.isupper() for char in password):
-                    criteria_var[i].set("✓ At least 1 uppercase letter")
-                    check_var[i].set("Checked")
+                    self.criteria_var[i].set("✓ At least 1 uppercase letter")
+                    self.check_var[i].set("Checked")
                 elif i == 3 and any(char.islower() for char in password):
-                    criteria_var[i].set("✓ At least 1 lowercase letter")
-                    check_var[i].set("Checked")
+                    self.criteria_var[i].set("✓ At least 1 lowercase letter")
+                    self.check_var[i].set("Checked")
                 elif i == 4 and any(not char.isalnum() for char in password):
-                    criteria_var[i].set("✓ At least 1 symbol")
-                    check_var[i].set("Checked")
+                    self.criteria_var[i].set("✓ At least 1 symbol")
+                    self.check_var[i].set("Checked")
                 else:
-                    all_checked=False
-         
-    
-    def hide_criteria_popup(self,event):
-        self.criteria_window.destroy()
+                    all_checked = False
+
+    def hide_criteria_popup(self):
+        if self.criteria_window:
+            self.criteria_window.destroy()
+            self.criteria_window = None
+            
+    def check_focus(self, event):
+        if self.criteria_window and not self.criteria_window.winfo_containing(event.x_root, event.y_root):
+            self.hide_criteria_popup()
 
     def save_password(self):
         application = self.operations[1].get()
