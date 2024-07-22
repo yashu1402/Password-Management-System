@@ -1,10 +1,12 @@
 from tkinter import *
 from tkinter import messagebox
 import mysql.connector
-from password_management_system import PasswordManager
-import Registration  # Import the Registration module
 import random
-
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import Registration
+from password_management_system import PasswordManager
 
 background = "#06283D"
 framebg = "#EDEGED"
@@ -12,6 +14,65 @@ framefg = "#06283D"
 
 trials = 0
 user_id = 1
+otp = None
+email = None
+
+smtp_server = 'smtp.gmail.com'
+smtp_port = 587
+sender_email = 'kudiyayash31@gmail.com'
+sender_password = 'blxx sdpn ahwt mifa'
+
+def send_otp():
+    global otp, email
+    email = email_entry.get()
+    username = user.get()
+    if email == "" or email == "Email":
+        messagebox.showerror("Entry error", "Type your email!!")
+        return
+
+    if username == "" or username == "User Id":
+        messagebox.showerror("Entry error", "Type your User Id!!")
+        return
+
+    try:
+        mydb = mysql.connector.connect(host='localhost', username='root', password='12345', database="details")
+        mycursor = mydb.cursor()
+        print("Connection Established")
+
+        mycursor.execute("SELECT Email FROM login_info WHERE Username=%s", (username,))
+        myresult = mycursor.fetchone()
+        if myresult is None:
+            messagebox.showerror("Error", "Username not found")
+            return
+
+        stored_email = myresult[0]
+        if email != stored_email:
+            messagebox.showerror("Error", "Email does not match the one registered with this username")
+            return
+
+        otp = random.randint(100000, 999999)
+        message = f"Your OTP for login is {otp}"
+
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = email
+        msg['Subject'] = 'OTP for Login'
+        msg.attach(MIMEText(message, 'plain'))
+
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = msg.as_string()
+        server.sendmail(sender_email, email, text)
+        server.quit()
+
+        messagebox.showinfo("OTP Sent", f"OTP has been sent to {email}")
+        show_otp_window()
+
+    except mysql.connector.Error as err:
+        messagebox.showerror("Connection Error", f"Database connection not established: {err}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to send OTP: {str(e)}")
 
 def trial():
     global trials
@@ -21,69 +82,13 @@ def trial():
         messagebox.showwarning("Warning", "Last Chance to login!!!")
         root.destroy()
 
-'''def send_otp_via_email(email):
-    sender_email = "yogesh.choudhary.2021@ecajmer.ac.in"
-    sender_password = "dhaeopvxbozvswna"
-    
-    otp = ''.join(random.choices('0123456789', k=6))
-    
-    message = MIMEMultipart()
-    message['From'] = sender_email
-    message['To'] = email
-    message['Subject'] = 'OTP Verification'
-    
-    body = f'Your OTP is: {otp}'
-    message.attach(MIMEText(body, 'plain'))
-    
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, email, message.as_string())
-        server.quit()
-        print(f"OTP sent to {email}")
-        return otp
-    except Exception as e:
-        print(str(e))
-        return None
-    
-def open_otp_verification_window():
-    otp_window = Toplevel(root)
-    otp_window.title("OTP Verification")
-    otp_window.geometry("400x200")
-    otp_window.config(bg=background)
-    
-    otp_label = Label(otp_window, text="Enter OTP:", fg="#fff", bg=background, font=("Arial", 16))
-    otp_label.pack(pady=10)
-    
-    otp_entry = Entry(otp_window, width=20, fg='#fff', bg="#375174", font=('Arial Bold', 16), show="*")
-    otp_entry.pack(pady=10)
-    
-    verify_button = Button(otp_window, text="VERIFY", bg="#1f5675", fg="white", width=10, height=1, font=("Arial", 14, 'bold'), bd=0, command=lambda: validate_otp(otp_entry.get(), otp_window))
-    verify_button.pack(pady=10)
-
-def validate_otp(otp_entered, otp_window):
-    actual_otp = send_otp_via_email(email_entry.get())
-    if otp_entered == actual_otp:
-        messagebox.showinfo("Success", "OTP validated successfully!!!")
-        otp_window.destroy()
-        root.destroy()
-        open_password_management_system()
-    else:
-        messagebox.showerror("Error", "Invalid OTP. Please try again.")
-        otp_entry.delete(0, 'end')'''
-
 def loginuser():
-    global root
-    global user_id
+    global root, user_id
     username = user.get()
     password = pw.get()
-    #email = email_entry.get()
 
     if (username == "" or username == "User Id") or (password == "" or password == "Password"):
         messagebox.showerror("Entry error", "Type username or password!!")
-    #elif email == "" or email == "Email":
-     #   messagebox.showerror("Entry Error", "Type Email!!")
     else:
         try:
             mydb = mysql.connector.connect(host='localhost', username='root', password='12345', database="details")
@@ -106,10 +111,32 @@ def loginuser():
 
         else:
             user_id = myresult[0]
-            messagebox.showinfo("Login", "Successfully Login!!!!")
-            root.destroy()
-            open_password_management_system()
-           # open_otp_verification_window()
+
+def verify_otp():
+    entered_otp = otp_entry.get()
+    if str(otp) == entered_otp:
+        messagebox.showinfo("Login", "Successfully Login!!!!")
+        otp_window.destroy()
+        root.destroy()
+        open_password_management_system()
+    else:
+        messagebox.showerror("Invalid", "Invalid OTP!!")
+        trial()
+
+def show_otp_window():
+    global otp_window, otp_entry
+    otp_window = Toplevel(root)
+    otp_window.title("OTP Verification")
+    otp_window.geometry("300x200")
+    otp_window.config(bg=background)
+
+    Label(otp_window, text="Enter OTP", bg=background, fg="white", font=("Arial", 14)).pack(pady=20)
+    
+    otp_entry = Entry(otp_window, width=20, fg='#000', bg="#fff", border=0, font=('Arial', 14))
+    otp_entry.pack(pady=10)
+    
+    verifyButton = Button(otp_window, text="VERIFY OTP", bg="#1f5675", fg="white", width=10, height=1, font=("arial", 12, 'bold'), bd=0, command=verify_otp)
+    verifyButton.pack(pady=10)
 
 def open_password_management_system(): 
     import password_management_system
@@ -117,7 +144,7 @@ def open_password_management_system():
     db_class=PasswordManager('localhost','root','12345','password')
     db_class.connect()
     db_class.create_table()
-    root_class=password_management_system.Window(root, db_class,user_id)
+    root_class=password_management_system.Window(root, db_class, user_id)
     root.mainloop()
     db_class.close_connection()
 
@@ -170,22 +197,21 @@ pw = Entry(frame, width=18, fg='#fff', bg="#375174", border=0, font=('Arial Bold
 pw.insert(0, "Password")
 pw.bind("<FocusIn>", password_enter)
 pw.bind("<FocusOut>", password_leave)
-pw.place(x=500, y=410)
+pw.place(x=500, y=410)                       
 
-'''# Entry for email
+# Entry for email
 def email_enter(e):
     email_entry.delete(0, 'end')
 
 def email_leave(e):
-    email = email_entry.get()
-    if email == '':
+    if email_entry.get() == '':
         email_entry.insert(0, 'Email')
 
-email_entry = Entry(frame, width=18, fg='#fff', border=0, bg="#375174", font=('Arial Bold', 20),justify='center')
+email_entry = Entry(frame, width=18, fg='#fff', bg="#375174", border=0, font=('Arial Bold', 23))
 email_entry.insert(0, "Email")
 email_entry.bind("<FocusIn>", email_enter)
 email_entry.bind("<FocusOut>", email_leave)
-email_entry.place(x=500, y=530)'''                         
+email_entry.place(x=405, y=520)
 
 # Button to toggle password visibility
 button_mode = True
@@ -210,11 +236,15 @@ eyeButton.place(x=780, y=410)
 loginButton = Button(root, text="LOGIN", bg="#1f5675", fg="white", width=10, height=1, font=("arial", 16, 'bold'), bd=0, command=loginuser)
 loginButton.place(x=550, y=595)
 
+# Button to send OTP
+sendOtpButton = Button(root, text="SEND OTP", bg="#1f5675", fg="white", width=10, font=("arial", 16, 'bold'), bd=0, command=send_otp)
+sendOtpButton.place(x=715, y=520)
+
 # Label and button for registration
 label = Label(root, text="Don't have an account?", fg="#fff", bg="#00264d", font=("Microsoft YaHei UI Light", 9))
-label.place(x=500, y=500)
+label.place(x=480, y=480)
 
 registerButton = Button(root, width=10, text="Add New User", border=0, bg="#00264d", cursor='hand2', fg='#57a1f8', command=open_registration)
-registerButton.place(x=650, y=500)
+registerButton.place(x=630, y=482)
 
 root.mainloop()
