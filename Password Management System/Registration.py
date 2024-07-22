@@ -7,47 +7,56 @@ framebg = "#EDEGED"
 framefg = "#06283D"
 
 button_mode = True
+
 def login_user():
-     root.destroy()
-     import Login
-     Login.open_registration()
-     
+    root.destroy()
+    try:
+        import Login
+        Login.open_registration()
+    except ModuleNotFoundError:
+        messagebox.showerror("Module Error", "Login module not found")
+    except AttributeError:
+        messagebox.showerror("Function Error", "open_registration function not found in Login module")
+
 def register_user(user_id):
     global root
     def register():
         username = user.get()
         password = pw.get()
-        if (username == "" or username == "User ID") or (password == "" or password == "Password"):
-            messagebox.showerror("Entry Error!", "Type Username or Password!!!")
+        email = email_entry.get()
+        if (username == "" or username == "User ID") or (password == "" or password == "Password") or (email == "" or email == "Email"):
+            messagebox.showerror("Entry Error!", "Type Username, Password, and Email!!!")
         else:
             try:
                 mydb = mysql.connector.connect(host='localhost', username='root', password='12345')
                 mycursor = mydb.cursor()
                 print("Connection Established!!")
 
-            except:
-                messagebox.showerror("Connection", "Database connection not established")
+                try:
+                    mycursor.execute("CREATE DATABASE IF NOT EXISTS details")
+                    mycursor.execute("USE details")
+                    mycursor.execute("""
+                        CREATE TABLE IF NOT EXISTS login_info (
+                            ID INT AUTO_INCREMENT NOT NULL,
+                            Email VARCHAR(100) UNIQUE,
+                            Username VARCHAR(50),
+                            Password VARCHAR(100),
+                            PRIMARY KEY(ID)
+                        )
+                    """)
 
-            try:
-                command = "create database details"
-                mycursor.execute(command)
+                except mysql.connector.Error as err:
+                    messagebox.showerror("Database Error", f"Error: {err}")
+                    return
 
-                command = "use details"
-                mycursor.execute(command)
-
-                command = "create table login_info(ID int auto_increment not null, Username varchar(50),Password varchar(100))"
-                mycursor.execute(command)
-
-            except:
-                mycursor.execute("use details")
-                mydb = mysql.connector.connect(host='localhost', username='root', password='12345', database='details')
-                mycursor = mydb.cursor()
-
-                command = "insert into login_info(Username,Password) values(%s,%s)"
-                mycursor.execute(command, (username, password))
-                messagebox.showinfo("Register", "New User Added Succesfully!!!!!")
+                command = "INSERT INTO login_info (Email, Username, Password) VALUES (%s, %s, %s)"
+                mycursor.execute(command, (email, username, password))
                 mydb.commit()
+                messagebox.showinfo("Register", "New User Added Successfully!!!!!")
                 mydb.close()
+
+            except mysql.connector.Error as err:
+                messagebox.showerror("Connection", f"Database connection not established: {err}")
 
     root = Tk()
     root.title("New User Registration")
@@ -72,7 +81,7 @@ def register_user(user_id):
     def user_leave(e):
         name = user.get()
         if name == '':
-            user.insert(0, 'User Id')
+            user.insert(0, 'User ID')
 
     user = Entry(frame, width=18, fg='#fff', bg="#375174", border=0, font=('Arial Bold', 20))
     user.insert(0, "User ID")
@@ -94,15 +103,28 @@ def register_user(user_id):
     pw.bind("<FocusOut>", password_leave)
     pw.place(x=500, y=470)
 
+    # Email entry
+    def email_enter(e):
+        email_entry.delete(0, 'end')
+
+    def email_leave(e):
+        if email_entry.get() == '':
+            email_entry.insert(0, 'Email')
+
+    email_entry = Entry(frame, width=18, fg='#fff', bg="#375174", border=0, font=('Arial Bold', 20))
+    email_entry.insert(0, "Email")
+    email_entry.bind("<FocusIn>", email_enter)
+    email_entry.bind("<FocusOut>", email_leave)
+    email_entry.place(x=500, y=290)
+
     # Button to toggle password visibility
-    
     def hide():
-      global button_mode
-      if button_mode:
+        global button_mode
+        if button_mode:
             eyeButton.config(image=closeeye, activebackground="white")
             pw.config(show="*")
             button_mode = False
-      else:
+        else:
             eyeButton.config(image=openeye, activebackground="white")
             pw.config(show="")
             button_mode = True
@@ -118,11 +140,11 @@ def register_user(user_id):
 
     # Back button
     backbuttonimage = PhotoImage(file="backbutton.png")
-    Backbutton = Button(root, image=backbuttonimage, fg="#deeefb",command=login_user)
+    Backbutton = Button(root, image=backbuttonimage, fg="#deeefb", command=login_user)
     Backbutton.place(x=20, y=15)
 
     root.mainloop()
 
 if __name__ == "__main__":
-    user_id=1
+    user_id = 1
     register_user(user_id)
