@@ -63,9 +63,15 @@ This project allows users to store, manage, and retrieve their account credentia
 ### Project Structure
 Password-Management-System/
 │── main.py               # Entry point
+
 │── config.py             # Database configuration
+
 │── database.py           # MySQL setup and queries
+
 │── gui.py                # Tkinter GUI components
+
 │── utils.py              # Helper functions (encryption, validation)
+
 │── requirements.txt      # Dependencies
+
 │── README.md             # Documentation
