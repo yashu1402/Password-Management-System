@@ -62,6 +62,7 @@ This project allows users to store, manage, and retrieve their account credentia
 
 ### Project Structure
 Password-Management-System/
+
 │── main.py               # Entry point
 
 │── config.py             # Database configuration
